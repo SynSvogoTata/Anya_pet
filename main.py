@@ -52,9 +52,23 @@ class AnyaPet(QMainWindow):
         if self.current_frame >= len(frames):
             self.current_frame = 0
         
-        pixmap = QPixmap(frames[self.current_frame])
-        self.label.setPixmap(pixmap)
-        self.resize(pixmap.width(), pixmap.height())
+        # Завантажуємо оригінальну картинку
+        orig_pixmap = QPixmap(frames[self.current_frame])
+        
+        # Вираховуємо нові розміри (ділимо ширину та висоту на 10)
+        new_width = orig_pixmap.width() // 10
+        new_height = orig_pixmap.height() // 10
+        
+        # Масштабуємо з урахуванням пропорцій та якісним згладжуванням
+        scaled_pixmap = orig_pixmap.scaled(
+            new_width, 
+            new_height, 
+            Qt.AspectRatioMode.KeepAspectRatio, 
+            Qt.TransformationMode.SmoothTransformation
+        )
+        
+        self.label.setPixmap(scaled_pixmap)
+        self.resize(scaled_pixmap.width(), scaled_pixmap.height())
 
     def animate(self):
         if not self.is_dragging:
