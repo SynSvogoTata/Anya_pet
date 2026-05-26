@@ -20,7 +20,6 @@ class AnyaPet(QMainWindow):
         self.label = QLabel(self)
         self.setCentralWidget(self.label)
 
-        # Повертаємо розширення .png
         self.anim_sprites = {
             "idle": [get_asset_path("sprites/idle/0.png")],
             "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
@@ -29,31 +28,30 @@ class AnyaPet(QMainWindow):
 
         self.current_state = "idle"
         self.current_frame = 0
-        self.speed = 6
         
-        # Стани миші та фізики
+        # Швидка ходьба без ефекту ковзання
+        self.speed = 12
+        
         self.is_dragging = False
         self.drag_offset = QPoint()
         self.last_mouse_pos = QPoint()
         
-        # Фізичні змінні для падіння та кидків
-        self.vx = 0.0  # Швидкість по горизонталі
-        self.vy = 0.0  # Швидкість по вертикалі
-        self.gravity = 0.8  # Сила тяжіння
-        self.friction = 0.98  # Опір повітря
-        self.bounce = 0.3  # Сила відскоку від підлоги (0 - без відскоку)
+        self.vx = 0.0  
+        self.vy = 0.0  
+        self.gravity = 0.8  
+        self.friction = 0.98  
+        self.bounce = 0.3  
 
         screen = QApplication.primaryScreen().geometry()
         self.x = float(screen.width() // 2)
         self.y = float(screen.height() - 150)
         self.move(int(self.x), int(self.y))
 
-        # Основний таймер для анімації (200 мс)
+        # Швидкість кадрів залишаємо стандартною (200 мс)
         self.anim_timer = QTimer()
         self.anim_timer.timeout.connect(self.animate)
         self.anim_timer.start(200)
 
-        # Таймер для фізики (працює частіше - кожні 16 мс, ~60 FPS для плавності)
         self.physics_timer = QTimer()
         self.physics_timer.timeout.connect(self.apply_physics)
         self.physics_timer.start(16)
@@ -71,13 +69,11 @@ class AnyaPet(QMainWindow):
         
         orig_pixmap = QPixmap(frames[self.current_frame])
         
-        # Зменшуємо у 20 разів (ще вдвічі менше від попереднього)
-        new_width = orig_pixmap.width() // 20
-        new_height = orig_pixmap.height() // 20
-        
+        # Задаємо чіткий середній розмір: ширина 250 пікселів.
+        # Висота (ось цей мінус 1) підлаштується автоматично, щоб зберегти пропорції Ані.
         scaled_pixmap = orig_pixmap.scaled(
-            max(1, new_width), 
-            max(1, new_height), 
+            250, 
+            -1, 
             Qt.AspectRatioMode.KeepAspectRatio, 
             Qt.TransformationMode.SmoothTransformation
         )
@@ -92,24 +88,20 @@ class AnyaPet(QMainWindow):
         screen_geo = QApplication.primaryScreen().geometry()
         floor_y = screen_geo.height() - self.height()
 
-        # Навіть якщо вона лежить на підлозі, горизонтальна швидкість згасає від тертя
         if self.y >= floor_y:
             self.vy = 0
             self.y = floor_y
-            self.vx *= 0.8  # Швидке гальмування на підлозі
+            self.vx *= 0.8  
             if abs(self.vx) < 0.1:
                 self.vx = 0
         else:
-            # Вільне падіння в повітрі
             self.vy += self.gravity
             self.vx *= self.friction
             self.vy *= self.friction
 
-        # Оновлення координат
         self.x += self.vx
         self.y += self.vy
 
-        # Перевірка меж екрана (ліва/права стіни)
         if self.x < 0:
             self.x = 0
             self.vx = -self.vx * self.bounce
@@ -117,10 +109,9 @@ class AnyaPet(QMainWindow):
             self.x = screen_geo.width() - self.width()
             self.vx = -self.vx * self.bounce
 
-        # Перевірка підлоги (відскік)
         if self.y > floor_y:
             self.y = floor_y
-            if self.vy > 2.0:  # Відскакує тільки якщо падіння було швидким
+            if self.vy > 2.0:  
                 self.vy = -self.vy * self.bounce
             else:
                 self.vy = 0
@@ -128,7 +119,6 @@ class AnyaPet(QMainWindow):
         self.move(int(self.x), int(self.y))
 
     def animate(self):
-        # Якщо Аня летить або падає, вона автоматично стає в "idle"
         screen_geo = QApplication.primaryScreen().geometry()
         if not self.is_dragging and self.y < screen_geo.height() - self.height() - 5:
             self.current_state = "idle"
@@ -149,7 +139,6 @@ class AnyaPet(QMainWindow):
 
     def change_behavior(self):
         screen_geo = QApplication.primaryScreen().geometry()
-        # Змінює поведінку лише коли впевнено стоїть на землі
         if not self.is_dragging and self.y >= screen_geo.height() - self.height() - 5:
             self.current_state = random.choice(["idle", "walk_left", "walk_right"])
             self.current_frame = 0
@@ -173,7 +162,6 @@ class AnyaPet(QMainWindow):
             new_pos = current_global - self.drag_offset
             self.move(new_pos)
             
-            # Рахуємо швидкість руху миші для майбутнього кидка
             self.vx = current_global.x() - self.last_mouse_pos.x()
             self.vy = current_global.y() - self.last_mouse_pos.y()
             
@@ -184,7 +172,6 @@ class AnyaPet(QMainWindow):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_dragging = False
-            # Обмежуємо занадто сильні імпульси кидка, щоб вона не вилітала у космос
             self.vx = max(-15.0, min(15.0, self.vx))
             self.vy = max(-20.0, min(15.0, self.vy))
 
