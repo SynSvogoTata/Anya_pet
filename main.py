@@ -42,12 +42,12 @@ class AnyaPet(QMainWindow):
         self.friction = 0.98  
         self.is_falling = False 
 
-        # Одразу жорстко задаємо розмір вікна програми
-        self.resize(250, 250)
+        # Новий зменшений у два рази розмір вікна (125 замість 250)
+        self.resize(125, 125)
 
         screen = QApplication.primaryScreen().geometry()
         self.x = float(screen.width() // 2)
-        self.y = float(screen.height() - 300) 
+        self.y = float(screen.height() - 200) 
         self.move(int(self.x), int(self.y))
 
         self.anim_timer = QTimer()
@@ -73,21 +73,20 @@ class AnyaPet(QMainWindow):
             orig_pixmap = QPixmap(frames[self.current_frame])
             
             if orig_pixmap.isNull():
-                self.label.setText("Аня не знайшла картинку")
-                self.label.setStyleSheet("color: red; font-size: 14px;")
+                self.label.setText("Помилка файлу")
+                self.label.setStyleSheet("color: red; font-size: 10px;")
                 return
 
-            # Примусове жорстке стиснення до 250х250 пікселів без математичних формул
+            # Новий фіксований компактний розмір (125х125)
             scaled_pixmap = orig_pixmap.scaled(
-                250, 
-                250, 
+                125, 
+                125, 
                 Qt.AspectRatioMode.KeepAspectRatio, 
                 Qt.TransformationMode.SmoothTransformation
             )
             
             self.label.setPixmap(scaled_pixmap)
-            # Залишаємо розмір вікна фіксованим
-            self.resize(250, 250)
+            self.resize(125, 125)
         except Exception as e:
             print(f"Помилка зміни вигляду: {e}")
 
@@ -105,18 +104,16 @@ class AnyaPet(QMainWindow):
         self.x += self.vx
         self.y += self.vy
 
-        # БЕЗ БИТТЯ ОБ СТІНИ: Просто зупиняємо рух на межах екрана
         if self.x < 0:
             self.x = 0
-            self.vx = 0  # Швидкість гаситься
+            self.vx = 0  
         elif self.x > screen_geo.width() - self.width():
             self.x = screen_geo.width() - self.width()
-            self.vx = 0  # Швидкість гаситься
+            self.vx = 0  
 
         if self.y >= floor_y:
             self.y = floor_y
             if self.vy > 2.0:  
-                # Слабкий відскік від підлоги залишаємо, але робимо його м'яким (0.15)
                 self.vy = -self.vy * 0.15  
             else:
                 self.vy = 0
@@ -140,7 +137,6 @@ class AnyaPet(QMainWindow):
             elif self.current_state == "walk_left":
                 self.x -= self.speed
 
-            # Акуратна зупинка під час ходьби біля стін (без биття)
             if self.x < 0: 
                 self.x = 0
                 self.current_state = "idle"
