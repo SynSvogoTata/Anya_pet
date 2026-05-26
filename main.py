@@ -21,9 +21,9 @@ class AnyaPet(QMainWindow):
         self.setCentralWidget(self.label)
 
         self.anim_sprites = {
-            "idle": [get_asset_path("sprites/idle/0.jpg")],
-            "walk_right": [get_asset_path(f"sprites/walk_right/{i}.jpg") for i in range(2)],
-            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.jpg") for i in range(2)]
+            "idle": [get_asset_path("sprites/idle/0.png")],
+            "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
+            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.png") for i in range(2)]
         }
 
         self.current_state = "idle"
