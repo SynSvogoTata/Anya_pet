@@ -40,8 +40,10 @@ class AnyaPet(QMainWindow):
         self.vy = 0.0  
         self.gravity = 0.8  
         self.friction = 0.98  
-        self.bounce = 0.3  
         self.is_falling = False 
+
+        # Одразу жорстко задаємо розмір вікна програми
+        self.resize(250, 250)
 
         screen = QApplication.primaryScreen().geometry()
         self.x = float(screen.width() // 2)
@@ -60,8 +62,6 @@ class AnyaPet(QMainWindow):
         self.behavior_timer.timeout.connect(self.change_behavior)
         self.behavior_timer.start(5000)
 
-        # Безпечний перший запуск
-        self.resize(250, 250)
         self.update_appearance()
 
     def update_appearance(self):
@@ -72,32 +72,24 @@ class AnyaPet(QMainWindow):
             
             orig_pixmap = QPixmap(frames[self.current_frame])
             
-            # ЗАХИСТ: Якщо файл пошкоджений або відсутній — не падаємо!
-            if orig_pixmap.isNull() or orig_pixmap.width() == 0:
+            if orig_pixmap.isNull():
                 self.label.setText("Аня не знайшла картинку")
                 self.label.setStyleSheet("color: red; font-size: 14px;")
                 return
 
-            target_width = 250
-            ratio = target_width / orig_pixmap.width()
-            target_height = int(orig_pixmap.height() * ratio)
-            
-            # На випадок некоректної висоти
-            if target_height <= 0:
-                target_height = 250
-
+            # Примусове жорстке стиснення до 250х250 пікселів без математичних формул
             scaled_pixmap = orig_pixmap.scaled(
-                target_width, 
-                target_height, 
+                250, 
+                250, 
                 Qt.AspectRatioMode.KeepAspectRatio, 
                 Qt.TransformationMode.SmoothTransformation
             )
             
             self.label.setPixmap(scaled_pixmap)
-            self.resize(scaled_pixmap.width(), scaled_pixmap.height())
+            # Залишаємо розмір вікна фіксованим
+            self.resize(250, 250)
         except Exception as e:
-            # Якщо станеться будь-яка інша помилка — додаток продовжить жити
-            print(f"Помилка анімації: {e}")
+            print(f"Помилка зміни вигляду: {e}")
 
     def apply_physics(self):
         if self.current_mode != "physics" or self.is_dragging or not self.is_falling:
@@ -113,17 +105,19 @@ class AnyaPet(QMainWindow):
         self.x += self.vx
         self.y += self.vy
 
+        # БЕЗ БИТТЯ ОБ СТІНИ: Просто зупиняємо рух на межах екрана
         if self.x < 0:
             self.x = 0
-            self.vx = -self.vx * self.bounce
+            self.vx = 0  # Швидкість гаситься
         elif self.x > screen_geo.width() - self.width():
             self.x = screen_geo.width() - self.width()
-            self.vx = -self.vx * self.bounce
+            self.vx = 0  # Швидкість гаситься
 
         if self.y >= floor_y:
             self.y = floor_y
             if self.vy > 2.0:  
-                self.vy = -self.vy * self.bounce
+                # Слабкий відскік від підлоги залишаємо, але робимо його м'яким (0.15)
+                self.vy = -self.vy * 0.15  
             else:
                 self.vy = 0
                 self.vx = 0
@@ -146,8 +140,13 @@ class AnyaPet(QMainWindow):
             elif self.current_state == "walk_left":
                 self.x -= self.speed
 
-            if self.x < 0: self.x = 0
-            if self.x > screen_geo.width() - self.width(): self.x = screen_geo.width() - self.width()
+            # Акуратна зупинка під час ходьби біля стін (без биття)
+            if self.x < 0: 
+                self.x = 0
+                self.current_state = "idle"
+            elif self.x > screen_geo.width() - self.width(): 
+                self.x = screen_geo.width() - self.width()
+                self.current_state = "idle"
 
             if self.current_mode == "physics":
                 self.y = floor_y
