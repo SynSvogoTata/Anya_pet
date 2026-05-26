@@ -29,7 +29,7 @@ class AnyaPet(QMainWindow):
 
         self.current_state = "idle"
         self.current_frame = 0
-        self.speed = 3
+        self.speed = 6
         
         # Стани миші та фізики
         self.is_dragging = False
