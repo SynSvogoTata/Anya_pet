@@ -4,7 +4,6 @@ import random
 from PyQt6.QtCore import QTimer, Qt, QPoint
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
-
 def get_asset_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
