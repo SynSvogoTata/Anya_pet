@@ -20,7 +20,6 @@ class AnyaPet(QMainWindow):
         self.label = QLabel(self)
         self.setCentralWidget(self.label)
 
-        # Тільки базові анімації (ліво, право, спокій)
         self.anim_sprites = {
             "idle": [get_asset_path("sprites/idle/0.png")],
             "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
@@ -35,10 +34,8 @@ class AnyaPet(QMainWindow):
         self.drag_offset = QPoint()
         self.last_mouse_pos = QPoint()
         
-        # Режими програми: "physics" (гравітація) або "free" (без гравітації)
         self.current_mode = "physics" 
         
-        # Фізика польоту
         self.vx = 0.0  
         self.vy = 0.0  
         self.gravity = 0.8  
@@ -48,20 +45,17 @@ class AnyaPet(QMainWindow):
 
         screen = QApplication.primaryScreen().geometry()
         self.x = float(screen.width() // 2)
-        self.y = float(screen.height() - 250)
+        self.y = float(screen.height() - 300) # Трохи підняли при старті
         self.move(int(self.x), int(self.y))
 
-        # Таймер анімації (200 мс)
         self.anim_timer = QTimer()
         self.anim_timer.timeout.connect(self.animate)
         self.anim_timer.start(200)
 
-        # Таймер фізики (16 мс)
         self.physics_timer = QTimer()
         self.physics_timer.timeout.connect(self.apply_physics)
         self.physics_timer.start(16)
 
-        # Таймер поведінки
         self.behavior_timer = QTimer()
         self.behavior_timer.timeout.connect(self.change_behavior)
         self.behavior_timer.start(5000)
@@ -75,18 +69,27 @@ class AnyaPet(QMainWindow):
         
         orig_pixmap = QPixmap(frames[self.current_frame])
         
+        # Якщо картинка раптом не завантажилася, не ламаємо програму
+        if orig_pixmap.isNull():
+            return
+
+        # Точний математичний розрахунок пропорцій замість значення "-1"
+        target_width = 250
+        ratio = target_width / orig_pixmap.width()
+        target_height = int(orig_pixmap.height() * ratio)
+        
         scaled_pixmap = orig_pixmap.scaled(
-            250, 
-            -1, 
+            target_width, 
+            target_height, 
             Qt.AspectRatioMode.KeepAspectRatio, 
             Qt.TransformationMode.SmoothTransformation
         )
         
         self.label.setPixmap(scaled_pixmap)
+        self.label.resize(scaled_pixmap.width(), scaled_pixmap.height())
         self.resize(scaled_pixmap.width(), scaled_pixmap.height())
 
     def apply_physics(self):
-        # Фізика працює ТІЛЬКИ в режимі "physics" і коли Аню запустили в політ
         if self.current_mode != "physics" or self.is_dragging or not self.is_falling:
             return
 
@@ -100,7 +103,6 @@ class AnyaPet(QMainWindow):
         self.x += self.vx
         self.y += self.vy
 
-        # Відскоки від лівої/правої стін
         if self.x < 0:
             self.x = 0
             self.vx = -self.vx * self.bounce
@@ -108,7 +110,6 @@ class AnyaPet(QMainWindow):
             self.x = screen_geo.width() - self.width()
             self.vx = -self.vx * self.bounce
 
-        # Приземлення на підлогу
         if self.y >= floor_y:
             self.y = floor_y
             if self.vy > 2.0:  
@@ -129,23 +130,18 @@ class AnyaPet(QMainWindow):
         screen_geo = QApplication.primaryScreen().geometry()
         floor_y = screen_geo.height() - self.height()
 
-        # Ходьба (однакова для обох режимів — тільки вліво/вправо)
         if not self.is_falling:
             if self.current_state == "walk_right":
                 self.x += self.speed
             elif self.current_state == "walk_left":
                 self.x -= self.speed
 
-            # Обмеження екрана по горизонталі
             if self.x < 0: self.x = 0
             if self.x > screen_geo.width() - self.width(): self.x = screen_geo.width() - self.width()
 
-            # Фіксація по вертикалі залежно від режиму
             if self.current_mode == "physics":
-                # Режим гравітації: завжди стоїть на підлозі екрана
                 self.y = floor_y
             else:
-                # Вільний режим: утримує ту висоту (y), на яку її поставив користувач
                 if self.y < 0: self.y = 0
                 if self.y > floor_y: self.y = floor_y
             
@@ -155,7 +151,6 @@ class AnyaPet(QMainWindow):
         self.update_appearance()
 
     def change_behavior(self):
-        # Аня завжди вибирає між "стояти", "йти вліво", "йти вправо"
         if not self.is_dragging and not self.is_falling:
             self.current_state = random.choice(["idle", "walk_left", "walk_right"])
             self.current_frame = 0
@@ -170,8 +165,6 @@ class AnyaPet(QMainWindow):
             self.last_mouse_pos = event.globalPosition().toPoint()
             self.vx = 0
             self.vy = 0
-
-        # Клік правою кнопкою миші відкриває меню
         elif event.button() == Qt.MouseButton.RightButton:
             self.show_context_menu(event.pos())
 
@@ -199,7 +192,6 @@ class AnyaPet(QMainWindow):
                     self.vx = max(-15.0, min(15.0, self.vx))
                     self.vy = max(-20.0, min(15.0, self.vy))
             else:
-                # У вільному режимі кидка немає, вона миттєво фіксується на новій висоті
                 self.is_falling = False
                 self.vx = 0
                 self.vy = 0
@@ -225,16 +217,4 @@ class AnyaPet(QMainWindow):
         menu.addSeparator()
         menu.addAction(exit_action)
         
-        menu.exec(self.mapToGlobal(position))
-
-    def set_mode(self, mode):
-        self.current_mode = mode
-        self.is_falling = False
-        self.current_state = "idle"
-        self.current_frame = 0
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    pet = AnyaPet()
-    pet.show()
-    sys.exit(app.exec())
+        menu
