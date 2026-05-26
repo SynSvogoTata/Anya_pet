@@ -21,40 +21,25 @@ class AnyaPet(QMainWindow):
         self.setCentralWidget(self.label)
 
         self.anim_sprites = {
-            "idle": [get_asset_path("sprites/idle/0.png")],
-            "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
-            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.png") for i in range(2)]
+            "idle": [get_asset_path("sprites/idle/0.jpg")],
+            "walk_right": [get_asset_path(f"sprites/walk_right/{i}.jpg") for i in range(2)],
+            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.jpg") for i in range(2)]
         }
 
         self.current_state = "idle"
         self.current_frame = 0
-        
-        # Швидка ходьба без ефекту ковзання
         self.speed = 12
-        
         self.is_dragging = False
         self.drag_offset = QPoint()
-        self.last_mouse_pos = QPoint()
-        
-        self.vx = 0.0  
-        self.vy = 0.0  
-        self.gravity = 0.8  
-        self.friction = 0.98  
-        self.bounce = 0.3  
 
         screen = QApplication.primaryScreen().geometry()
-        self.x = float(screen.width() // 2)
-        self.y = float(screen.height() - 150)
-        self.move(int(self.x), int(self.y))
+        self.x = screen.width() // 2
+        self.y = screen.height() - 150
+        self.move(self.x, self.y)
 
-        # Швидкість кадрів залишаємо стандартною (200 мс)
         self.anim_timer = QTimer()
         self.anim_timer.timeout.connect(self.animate)
         self.anim_timer.start(200)
-
-        self.physics_timer = QTimer()
-        self.physics_timer.timeout.connect(self.apply_physics)
-        self.physics_timer.start(16)
 
         self.behavior_timer = QTimer()
         self.behavior_timer.timeout.connect(self.change_behavior)
@@ -67,13 +52,17 @@ class AnyaPet(QMainWindow):
         if self.current_frame >= len(frames):
             self.current_frame = 0
         
+        # Завантажуємо оригінальну картинку
         orig_pixmap = QPixmap(frames[self.current_frame])
         
-        # Задаємо чіткий середній розмір: ширина 250 пікселів.
-        # Висота (ось цей мінус 1) підлаштується автоматично, щоб зберегти пропорції Ані.
+        # Вираховуємо нові розміри (ділимо ширину та висоту на 10)
+        new_width = orig_pixmap.width() // 10
+        new_height = orig_pixmap.height() // 10
+        
+        # Масштабуємо з урахуванням пропорцій та якісним згладжуванням
         scaled_pixmap = orig_pixmap.scaled(
-            250, 
-            -1, 
+            new_width, 
+            new_height, 
             Qt.AspectRatioMode.KeepAspectRatio, 
             Qt.TransformationMode.SmoothTransformation
         )
@@ -81,65 +70,24 @@ class AnyaPet(QMainWindow):
         self.label.setPixmap(scaled_pixmap)
         self.resize(scaled_pixmap.width(), scaled_pixmap.height())
 
-    def apply_physics(self):
-        if self.is_dragging:
-            return
-
-        screen_geo = QApplication.primaryScreen().geometry()
-        floor_y = screen_geo.height() - self.height()
-
-        if self.y >= floor_y:
-            self.vy = 0
-            self.y = floor_y
-            self.vx *= 0.8  
-            if abs(self.vx) < 0.1:
-                self.vx = 0
-        else:
-            self.vy += self.gravity
-            self.vx *= self.friction
-            self.vy *= self.friction
-
-        self.x += self.vx
-        self.y += self.vy
-
-        if self.x < 0:
-            self.x = 0
-            self.vx = -self.vx * self.bounce
-        elif self.x > screen_geo.width() - self.width():
-            self.x = screen_geo.width() - self.width()
-            self.vx = -self.vx * self.bounce
-
-        if self.y > floor_y:
-            self.y = floor_y
-            if self.vy > 2.0:  
-                self.vy = -self.vy * self.bounce
-            else:
-                self.vy = 0
-
-        self.move(int(self.x), int(self.y))
-
     def animate(self):
-        screen_geo = QApplication.primaryScreen().geometry()
-        if not self.is_dragging and self.y < screen_geo.height() - self.height() - 5:
-            self.current_state = "idle"
-
-        if not self.is_dragging and self.y >= screen_geo.height() - self.height() - 5:
+        if not self.is_dragging:
             if self.current_state == "walk_right":
                 self.x += self.speed
             elif self.current_state == "walk_left":
                 self.x -= self.speed
 
+            screen_geo = QApplication.primaryScreen().geometry()
             if self.x < 0: self.x = 0
             if self.x > screen_geo.width() - self.width(): self.x = screen_geo.width() - self.width()
             
-            self.move(int(self.x), int(self.y))
+            self.move(self.x, self.y)
 
         self.current_frame += 1
         self.update_appearance()
 
     def change_behavior(self):
-        screen_geo = QApplication.primaryScreen().geometry()
-        if not self.is_dragging and self.y >= screen_geo.height() - self.height() - 5:
+        if not self.is_dragging:
             self.current_state = random.choice(["idle", "walk_left", "walk_right"])
             self.current_frame = 0
         self.behavior_timer.setInterval(random.randint(3000, 7000))
@@ -149,31 +97,20 @@ class AnyaPet(QMainWindow):
             self.is_dragging = True
             self.current_state = "idle"
             self.drag_offset = event.pos()
-            self.last_mouse_pos = event.globalPosition().toPoint()
-            self.vx = 0
-            self.vy = 0
-
+        
         if event.button() == Qt.MouseButton.RightButton:
             QApplication.quit()
 
     def mouseMoveEvent(self, event):
         if self.is_dragging:
-            current_global = event.globalPosition().toPoint()
-            new_pos = current_global - self.drag_offset
+            new_pos = event.globalPosition().toPoint() - self.drag_offset
             self.move(new_pos)
-            
-            self.vx = current_global.x() - self.last_mouse_pos.x()
-            self.vy = current_global.y() - self.last_mouse_pos.y()
-            
-            self.last_mouse_pos = current_global
-            self.x = float(new_pos.x())
-            self.y = float(new_pos.y())
+            self.x = new_pos.x()
+            self.y = new_pos.y()
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_dragging = False
-            self.vx = max(-15.0, min(15.0, self.vx))
-            self.vy = max(-20.0, min(15.0, self.vy))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
