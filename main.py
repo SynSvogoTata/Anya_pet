@@ -45,7 +45,7 @@ class AnyaPet(QMainWindow):
 
         screen = QApplication.primaryScreen().geometry()
         self.x = float(screen.width() // 2)
-        self.y = float(screen.height() - 300) # Трохи підняли при старті
+        self.y = float(screen.height() - 300) 
         self.move(int(self.x), int(self.y))
 
         self.anim_timer = QTimer()
@@ -60,34 +60,44 @@ class AnyaPet(QMainWindow):
         self.behavior_timer.timeout.connect(self.change_behavior)
         self.behavior_timer.start(5000)
 
+        # Безпечний перший запуск
+        self.resize(250, 250)
         self.update_appearance()
 
     def update_appearance(self):
-        frames = self.anim_sprites[self.current_state]
-        if self.current_frame >= len(frames):
-            self.current_frame = 0
-        
-        orig_pixmap = QPixmap(frames[self.current_frame])
-        
-        # Якщо картинка раптом не завантажилася, не ламаємо програму
-        if orig_pixmap.isNull():
-            return
+        try:
+            frames = self.anim_sprites[self.current_state]
+            if self.current_frame >= len(frames):
+                self.current_frame = 0
+            
+            orig_pixmap = QPixmap(frames[self.current_frame])
+            
+            # ЗАХИСТ: Якщо файл пошкоджений або відсутній — не падаємо!
+            if orig_pixmap.isNull() or orig_pixmap.width() == 0:
+                self.label.setText("Аня не знайшла картинку")
+                self.label.setStyleSheet("color: red; font-size: 14px;")
+                return
 
-        # Точний математичний розрахунок пропорцій замість значення "-1"
-        target_width = 250
-        ratio = target_width / orig_pixmap.width()
-        target_height = int(orig_pixmap.height() * ratio)
-        
-        scaled_pixmap = orig_pixmap.scaled(
-            target_width, 
-            target_height, 
-            Qt.AspectRatioMode.KeepAspectRatio, 
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        self.label.setPixmap(scaled_pixmap)
-        self.label.resize(scaled_pixmap.width(), scaled_pixmap.height())
-        self.resize(scaled_pixmap.width(), scaled_pixmap.height())
+            target_width = 250
+            ratio = target_width / orig_pixmap.width()
+            target_height = int(orig_pixmap.height() * ratio)
+            
+            # На випадок некоректної висоти
+            if target_height <= 0:
+                target_height = 250
+
+            scaled_pixmap = orig_pixmap.scaled(
+                target_width, 
+                target_height, 
+                Qt.AspectRatioMode.KeepAspectRatio, 
+                Qt.TransformationMode.SmoothTransformation
+            )
+            
+            self.label.setPixmap(scaled_pixmap)
+            self.resize(scaled_pixmap.width(), scaled_pixmap.height())
+        except Exception as e:
+            # Якщо станеться будь-яка інша помилка — додаток продовжить жити
+            print(f"Помилка анімації: {e}")
 
     def apply_physics(self):
         if self.current_mode != "physics" or self.is_dragging or not self.is_falling:
@@ -217,4 +227,16 @@ class AnyaPet(QMainWindow):
         menu.addSeparator()
         menu.addAction(exit_action)
         
-        menu
+        menu.exec(self.mapToGlobal(position))
+
+    def set_mode(self, mode):
+        self.current_mode = mode
+        self.is_falling = False
+        self.current_state = "idle"
+        self.current_frame = 0
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    pet = AnyaPet()
+    pet.show()
+    sys.exit(app.exec())
