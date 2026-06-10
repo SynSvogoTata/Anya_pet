@@ -25,8 +25,8 @@ class AnyaPet(QMainWindow):
             "idle": [get_asset_path("sprites/idle/0.png")],
             "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
             "walk_left": [get_asset_path(f"sprites/walk_left/{i}.png") for i in range(2)],
-            "walk_forward": [get_asset_path(f"sprites/forward/{i}.png") for i in range(2)],   # спиною до нас (вгору)
-            "walk_backward": [get_asset_path(f"sprites/backward/{i}.png") for i in range(2)]  # обличчям до нас (вниз)
+            "walk_forward": [get_asset_path(f"sprites/walk_forward/{i}.png") for i in range(2)],   # спиною до нас (вгору)
+            "walk_backward": [get_asset_path(f"sprites/walk_backward/{i}.png") for i in range(2)]  # обличчям до нас (вниз)
         }
 
         self.current_state = "idle"
