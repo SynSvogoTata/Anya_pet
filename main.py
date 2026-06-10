@@ -20,10 +20,13 @@ class AnyaPet(QMainWindow):
         self.label = QLabel(self)
         self.setCentralWidget(self.label)
 
+        # Підключаємо всі папки, враховуючи forward та backward
         self.anim_sprites = {
             "idle": [get_asset_path("sprites/idle/0.png")],
             "walk_right": [get_asset_path(f"sprites/walk_right/{i}.png") for i in range(2)],
-            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.png") for i in range(2)]
+            "walk_left": [get_asset_path(f"sprites/walk_left/{i}.png") for i in range(2)],
+            "walk_forward": [get_asset_path(f"sprites/forward/{i}.png") for i in range(2)],   # спиною до нас (вгору)
+            "walk_backward": [get_asset_path(f"sprites/backward/{i}.png") for i in range(2)]  # обличчям до нас (вниз)
         }
 
         self.current_state = "idle"
@@ -34,6 +37,7 @@ class AnyaPet(QMainWindow):
         self.drag_offset = QPoint()
         self.last_mouse_pos = QPoint()
         
+        # Режими: "physics" (гравітація), "free_horiz" (лише вліво/вправо), "free_all" (всюди)
         self.current_mode = "physics" 
         
         self.vx = 0.0  
@@ -42,7 +46,7 @@ class AnyaPet(QMainWindow):
         self.friction = 0.98  
         self.is_falling = False 
 
-        # Новий зменшений у два рази розмір вікна (125 замість 250)
+        # Компактний розмір (125х125)
         self.resize(125, 125)
 
         screen = QApplication.primaryScreen().geometry()
@@ -77,7 +81,6 @@ class AnyaPet(QMainWindow):
                 self.label.setStyleSheet("color: red; font-size: 10px;")
                 return
 
-            # Новий фіксований компактний розмір (125х125)
             scaled_pixmap = orig_pixmap.scaled(
                 125, 
                 125, 
@@ -91,6 +94,7 @@ class AnyaPet(QMainWindow):
             print(f"Помилка зміни вигляду: {e}")
 
     def apply_physics(self):
+        # Фізика падіння активна ТІЛЬКИ в режимі гравітації
         if self.current_mode != "physics" or self.is_dragging or not self.is_falling:
             return
 
@@ -132,11 +136,18 @@ class AnyaPet(QMainWindow):
         floor_y = screen_geo.height() - self.height()
 
         if not self.is_falling:
+            # Рух по горизонталі (доступний у всіх режимах)
             if self.current_state == "walk_right":
                 self.x += self.speed
             elif self.current_state == "walk_left":
                 self.x -= self.speed
+            # Рух по вертикалі (доступний ТІЛЬКИ в режимі "Прогулянка всюди")
+            elif self.current_state == "walk_forward" and self.current_mode == "free_all":
+                self.y -= self.speed
+            elif self.current_state == "walk_backward" and self.current_mode == "free_all":
+                self.y += self.speed
 
+            # Обмеження меж екрана для захисту від виходу за стіни
             if self.x < 0: 
                 self.x = 0
                 self.current_state = "idle"
@@ -144,11 +155,16 @@ class AnyaPet(QMainWindow):
                 self.x = screen_geo.width() - self.width()
                 self.current_state = "idle"
 
+            if self.y < 0:
+                self.y = 0
+                self.current_state = "idle"
+            elif self.y > floor_y:
+                self.y = floor_y
+                self.current_state = "idle"
+
+            # Фіксація підлоги, якщо увімкнена гравітація
             if self.current_mode == "physics":
                 self.y = floor_y
-            else:
-                if self.y < 0: self.y = 0
-                if self.y > floor_y: self.y = floor_y
             
             self.move(int(self.x), int(self.y))
 
@@ -157,7 +173,12 @@ class AnyaPet(QMainWindow):
 
     def change_behavior(self):
         if not self.is_dragging and not self.is_falling:
-            self.current_state = random.choice(["idle", "walk_left", "walk_right"])
+            if self.current_mode == "free_all":
+                # В режимі "Всюди" вибираємо з усіх 4 напрямків
+                self.current_state = random.choice(["idle", "walk_left", "walk_right", "walk_forward", "walk_backward"])
+            else:
+                # В інших режимах — тільки вліво/вправо
+                self.current_state = random.choice(["idle", "walk_left", "walk_right"])
             self.current_frame = 0
         self.behavior_timer.setInterval(random.randint(3000, 7000))
 
@@ -209,16 +230,22 @@ class AnyaPet(QMainWindow):
         physics_action.setChecked(self.current_mode == "physics")
         physics_action.triggered.connect(lambda: self.set_mode("physics"))
         
-        free_action = QAction("Вільна прогулянка", self)
-        free_action.setCheckable(True)
-        free_action.setChecked(self.current_mode == "free")
-        free_action.triggered.connect(lambda: self.set_mode("free"))
+        free_horiz_action = QAction("Вільна прогулянка (горизонтальна)", self)
+        free_horiz_action.setCheckable(True)
+        free_horiz_action.setChecked(self.current_mode == "free_horiz")
+        free_horiz_action.triggered.connect(lambda: self.set_mode("free_horiz"))
+
+        free_all_action = QAction("Прогулянка всюди", self)
+        free_all_action.setCheckable(True)
+        free_all_action.setChecked(self.current_mode == "free_all")
+        free_all_action.triggered.connect(lambda: self.set_mode("free_all"))
         
         exit_action = QAction("Закрити програму", self)
         exit_action.triggered.connect(QApplication.quit)
         
         menu.addAction(physics_action)
-        menu.addAction(free_action)
+        menu.addAction(free_horiz_action)
+        menu.addAction(free_all_action)
         menu.addSeparator()
         menu.addAction(exit_action)
         
